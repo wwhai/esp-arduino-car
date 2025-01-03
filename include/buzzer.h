@@ -1,4 +1,4 @@
-// Copyright (C) 2024 wwhai
+// Copyright (C) 2025 wwhai
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -13,13 +13,22 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#include "crc16.h"
-unsigned short CRC16(const char *data, int length)
+#ifndef BUZZER_H
+#define BUZZER_H
+
+#include <Arduino.h>
+
+class Buzzer
 {
-    unsigned short crc = 0;
-    for (int i = 0; i < length; i++)
-    {
-        crc = (crc << 8) ^ m_CRC16Table[((crc >> 8) ^ data[i]) & 0x00FF];
-    }
-    return crc;
-}
+public:
+    Buzzer(uint8_t pin, uint16_t frequency = 440, uint16_t duration = 500);
+    void setup();
+    void beep();
+
+private:
+    uint8_t buzzerPin;
+    uint16_t beepFrequency;
+    uint16_t beepDuration;
+};
+
+#endif // BUZZER_H

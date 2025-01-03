@@ -1,128 +1,169 @@
-// Copyright (C) 2024 wwhai
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as
-// published by the Free Software Foundation, either version 3 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "ctrl.h"
+#include "buzzer.h"
+Buzzer buzzer(27, 1000, 500);
 
-// 构造函数，初始化 RF24 无线模块
-Ctrl::Ctrl() : radio(CE_PIN, CSN_PIN) {}
-
-// 初始化设置
-void Ctrl::setup()
+CarController::CarController()
 {
-    // 设置电机控制引脚为输出模式
-    pinMode(motorA1, OUTPUT);
-    pinMode(motorA2, OUTPUT);
-    pinMode(motorB1, OUTPUT);
-    pinMode(motorB2, OUTPUT);
-    pinMode(motorC1, OUTPUT);
-    pinMode(motorC2, OUTPUT);
-    pinMode(motorD1, OUTPUT);
-    pinMode(motorD2, OUTPUT);
+    buzzer.setup();
+}
+void CarController::setup()
+{
+    // 配置引脚模式
+    pinMode(A1_PIN, OUTPUT);
+    pinMode(A2_PIN, OUTPUT);
+    pinMode(B1_PIN, OUTPUT);
+    pinMode(B2_PIN, OUTPUT);
+    pinMode(C1_PIN, OUTPUT);
+    pinMode(C2_PIN, OUTPUT);
+    pinMode(D1_PIN, OUTPUT);
+    pinMode(D2_PIN, OUTPUT);
 
-    // 初始化 nRF24L01 无线模块
-    radio.begin();
-    radio.openReadingPipe(0, address); // 打开接收管道 0，使用指定地址
-    radio.setPALevel(RF24_PA_MIN);     // 设置功率级别为最小
-    radio.startListening();            // 进入监听模式
+    // 开机自检
+    if (!selfTest())
+    {
+        Serial.println("Self-test failed! Please check hardware connections.");
+        while (true)
+            ; // 停止程序运行
+    }
+    Serial.println("Self-test passed!");
+}
+// 自检功能
+bool CarController::selfTest()
+{
+    bool allPassed = true;
+
+    Serial.println("Starting self-test...");
+    allPassed &= testMotor("Motor A",
+                           &CarController::motorAForward, &CarController::motorAReverse);
+    allPassed &= testMotor("Motor B",
+                           &CarController::motorBForward, &CarController::motorBReverse);
+    allPassed &= testMotor("Motor C",
+                           &CarController::motorCForward, &CarController::motorCReverse);
+    allPassed &= testMotor("Motor D",
+                           &CarController::motorDForward, &CarController::motorDReverse);
+
+    return allPassed;
 }
 
-// 控制电机 A 正转
-void Ctrl::motorAForward()
+// 测试单个电机
+bool CarController::testMotor(const String &motorName,
+                              void (CarController::*forward)(), void (CarController::*reverse)())
 {
-    digitalWrite(motorA1, HIGH);
-    digitalWrite(motorA2, LOW);
+    for (size_t i = 0; i < 3; i++)
+    {
+        buzzer.beep();
+        delay(100);
+    }
+
+    Serial.print("Testing ");
+    Serial.print(motorName);
+    Serial.println("...");
+
+    // 正转测试
+    (this->*forward)();
+    buzzer.beep();
+    delay(500); // 电机运行时间
+    (this->*reverse)();
+    buzzer.beep();
+    delay(500);         // 电机运行时间
+    (this->*forward)(); // 再次测试正转
+    buzzer.beep();
+    delay(500);
+    stop(); // 停止电机
+    for (size_t i = 0; i < 3; i++)
+    {
+        buzzer.beep();
+        delay(100);
+    }
+    Serial.println(motorName + " passed!");
+    return true;
 }
 
-// 控制电机 A 反转
-void Ctrl::motorAReverse()
+void CarController::loop()
 {
-    digitalWrite(motorA1, LOW);
-    digitalWrite(motorA2, HIGH);
+    // 循环逻辑可以根据需要实现，例如解析命令并控制小车
+    readSerialData();
+    parsePacket();
 }
 
-// 控制电机 A 停止
-void Ctrl::motorAStop()
+// 电机A控制
+void CarController::motorAForward()
 {
-    digitalWrite(motorA1, LOW);
-    digitalWrite(motorA2, LOW);
+    digitalWrite(A1_PIN, HIGH);
+    digitalWrite(A2_PIN, LOW);
 }
 
-// 控制电机 B 正转
-void Ctrl::motorBForward()
+void CarController::motorAReverse()
 {
-    digitalWrite(motorB1, HIGH);
-    digitalWrite(motorB2, LOW);
+    digitalWrite(A1_PIN, LOW);
+    digitalWrite(A2_PIN, HIGH);
 }
 
-// 控制电机 B 反转
-void Ctrl::motorBReverse()
+void CarController::motorAStop()
 {
-    digitalWrite(motorB1, LOW);
-    digitalWrite(motorB2, HIGH);
+    digitalWrite(A1_PIN, LOW);
+    digitalWrite(A2_PIN, LOW);
 }
 
-// 控制电机 B 停止
-void Ctrl::motorBStop()
+// 电机B控制
+void CarController::motorBForward()
 {
-    digitalWrite(motorB1, LOW);
-    digitalWrite(motorB2, LOW);
+    digitalWrite(B1_PIN, HIGH);
+    digitalWrite(B2_PIN, LOW);
 }
 
-// 控制电机 C 正转
-void Ctrl::motorCForward()
+void CarController::motorBReverse()
 {
-    digitalWrite(motorC1, HIGH);
-    digitalWrite(motorC2, LOW);
+    digitalWrite(B1_PIN, LOW);
+    digitalWrite(B2_PIN, HIGH);
 }
 
-// 控制电机 C 反转
-void Ctrl::motorCReverse()
+void CarController::motorBStop()
 {
-    digitalWrite(motorC1, LOW);
-    digitalWrite(motorC2, HIGH);
+    digitalWrite(B1_PIN, LOW);
+    digitalWrite(B2_PIN, LOW);
 }
 
-// 控制电机 C 停止
-void Ctrl::motorCStop()
+// 电机C控制
+void CarController::motorCForward()
 {
-    digitalWrite(motorC1, LOW);
-    digitalWrite(motorC2, LOW);
+    digitalWrite(C1_PIN, HIGH);
+    digitalWrite(C2_PIN, LOW);
 }
 
-// 控制电机 D 正转
-void Ctrl::motorDForward()
+void CarController::motorCReverse()
 {
-    digitalWrite(motorD1, HIGH);
-    digitalWrite(motorD2, LOW);
+    digitalWrite(C1_PIN, LOW);
+    digitalWrite(C2_PIN, HIGH);
 }
 
-// 控制电机 D 反转
-void Ctrl::motorDReverse()
+void CarController::motorCStop()
 {
-    digitalWrite(motorD1, LOW);
-    digitalWrite(motorD2, HIGH);
+    digitalWrite(C1_PIN, LOW);
+    digitalWrite(C2_PIN, LOW);
 }
 
-// 控制电机 D 停止
-void Ctrl::motorDStop()
+// 电机D控制
+void CarController::motorDForward()
 {
-    digitalWrite(motorD1, LOW);
-    digitalWrite(motorD2, LOW);
+    digitalWrite(D1_PIN, HIGH);
+    digitalWrite(D2_PIN, LOW);
 }
 
-// 小车前进
-void Ctrl::forward()
+void CarController::motorDReverse()
+{
+    digitalWrite(D1_PIN, LOW);
+    digitalWrite(D2_PIN, HIGH);
+}
+
+void CarController::motorDStop()
+{
+    digitalWrite(D1_PIN, LOW);
+    digitalWrite(D2_PIN, LOW);
+}
+
+// 整车控制
+void CarController::forward()
 {
     motorAForward();
     motorBForward();
@@ -130,8 +171,7 @@ void Ctrl::forward()
     motorDForward();
 }
 
-// 小车后退
-void Ctrl::reverse()
+void CarController::reverse()
 {
     motorAReverse();
     motorBReverse();
@@ -139,93 +179,138 @@ void Ctrl::reverse()
     motorDReverse();
 }
 
-// 小车左转
-void Ctrl::turnLeft()
+void CarController::turnLeft()
 {
-    motorAReverse();
     motorBReverse();
+    motorDReverse();
     motorCForward();
-    motorDForward();
-}
-
-// 小车右转
-void Ctrl::turnRight()
-{
     motorAForward();
-    motorBForward();
-    motorCReverse();
-    motorDReverse();
 }
 
-// 小车停止
-void Ctrl::stop()
+void CarController::turnRight()
+{
+    motorBForward();
+    motorDForward();
+    motorAReverse();
+    motorCReverse();
+}
+
+void CarController::stop()
 {
     motorAStop();
     motorBStop();
     motorCStop();
     motorDStop();
 }
+// 定义全局缓冲区
+uint8_t globalBuffer[64];
 
-// 计算 CRC16 校验和
-uint16_t Ctrl::calculateCRC16(uint8_t *data, uint8_t len)
+// Modbus CRC16 计算函数
+uint16_t CarController::calculateCRC16(uint8_t *data, uint8_t len)
 {
-    return calculateCRC16(data, len);
+    uint16_t crc = 0xFFFF;
+    return crc;
 }
 
-// 解析接收到的数据包
-void Ctrl::parsePacket()
+void CarController::readSerialData()
 {
-    if (radio.available())
+    // 检查是否有可用的串口数据
+    while (Serial.available())
     {
-        uint8_t packet[32];
-        radio.read(packet, sizeof(packet));
-        // 检查包头
-        if (packet[0] == 0xAA && packet[1] == 0xBB)
+        uint8_t incomingByte = Serial.read();
+
+        // 写入 globalBuffer，防止缓冲区溢出
+        if (bufferIndex < sizeof(globalBuffer))
         {
-            uint8_t length = packet[2];
-            uint8_t cmd = packet[3];
-            uint16_t receivedCRC = (packet[length + 4] << 8) | packet[length + 5];
-            uint8_t endMarker1 = packet[length + 6];
-            uint8_t endMarker2 = packet[length + 7];
-            // 检查结束标志
-            if (endMarker1 == 0xEE && endMarker2 == 0xFF)
+            globalBuffer[bufferIndex++] = incomingByte;
+
+            // 检测是否接收到完整数据包（结束标志）
+            if (bufferIndex >= 4 &&
+                globalBuffer[bufferIndex - 2] == 0xEE &&
+                globalBuffer[bufferIndex - 1] == 0xFF)
             {
-                // 计算校验和
-                uint16_t calculatedCRC = calculateCRC16(packet, length + 4);
-                if (receivedCRC == calculatedCRC)
-                {
-                    // 检查命令码的合法性
-                    if (cmd >= 0x01 && cmd <= 0x05)
-                    {
-                        switch (cmd)
-                        {
-                        case 0x01:
-                            forward();
-                            break;
-                        case 0x02:
-                            reverse();
-                            break;
-                        case 0x03:
-                            turnLeft();
-                            break;
-                        case 0x04:
-                            turnRight();
-                            break;
-                        case 0x05:
-                            stop();
-                            break;
-                        default:
-                            break;
-                        }
-                    }
-                }
+                // 调用解析函数
+                parsePacket();
+                // 重置缓冲区索引
+                bufferIndex = 0;
             }
+        }
+        else
+        {
+            // 缓冲区溢出处理，重置索引
+            Serial.println("Buffer overflow!");
+            bufferIndex = 0;
         }
     }
 }
+// 解析数据包函数
 
-// 主循环中调用的函数，用于处理无线数据
-void Ctrl::loop()
+void CarController::parsePacket()
 {
-    parsePacket();
+    // 检查缓冲区是否至少包含一个完整的数据包
+    if (bufferIndex < 8)
+    { // 起始标志(2) + 数据长度(1) + 命令(1) + CRC(2) + 结束标志(2)
+        return;
+    }
+
+    // 检查起始标志
+    if (globalBuffer[0] != 0xAA || globalBuffer[1] != 0xBB)
+    {
+        Serial.println("Invalid start flag!");
+        bufferIndex = 0; // 重置缓冲区
+        return;
+    }
+
+    // 检查数据长度是否有效（固定为 1 字节命令）
+    uint8_t dataLength = globalBuffer[2];
+    if (dataLength != 3)
+    {
+        Serial.println("Invalid data length!");
+        bufferIndex = 0; // 重置缓冲区
+        return;
+    }
+
+    // 检查是否包含完整数据包
+    uint8_t expectedPacketSize = 2 + 1 + 1 + 2 + 2; // 起始标志 + 数据长度 + 命令 + CRC + 结束标志
+    if (bufferIndex < expectedPacketSize)
+    {
+        return; // 等待更多数据
+    }
+
+    // 检查结束标志
+    if (globalBuffer[6] != 0xEE || globalBuffer[7] != 0xFF)
+    {
+        Serial.println("Invalid end flag!");
+        bufferIndex = 0; // 重置缓冲区
+        return;
+    }
+    // 提取命令码
+    uint8_t commandCode = globalBuffer[3];
+    Serial.print("Received command: ");
+    Serial.println(commandCode, HEX);
+    // 解析命令
+    switch (commandCode)
+    {
+    case 0x01:
+        forward();
+        break;
+    case 0x02:
+        reverse();
+        break;
+    case 0x03:
+        turnLeft();
+        break;
+    case 0x04:
+        turnRight();
+        break;
+    case 0x05:
+        stop();
+        break;
+    default:
+        Serial.println("Unknown command!");
+        break;
+    }
+
+    // 重置缓冲区
+    bufferIndex = 0;
 }

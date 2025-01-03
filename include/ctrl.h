@@ -16,35 +16,33 @@
 #define CTRL_H
 
 #include <Arduino.h>
-#include <SPI.h>
-#include <nRF24L01.h>
-#include <RF24.h>
-#include "crc16.h"
+// 定义电机驱动引脚
+#define A1_PIN 5
+#define A2_PIN 18
+#define B1_PIN 19
+#define B2_PIN 21
+#define C1_PIN 22
+#define C2_PIN 23
+#define D1_PIN 25
+#define D2_PIN 26
 
-// 定义电机控制引脚
-const int motorA1 = 2;
-const int motorA2 = 3;
-const int motorB1 = 4;
-const int motorB2 = 5;
-const int motorC1 = 6;
-const int motorC2 = 7;
-const int motorD1 = 8;
-const int motorD2 = 9;
+// 定义协议标志
+#define START_FLAG_1 0xAA
+#define START_FLAG_2 0xBB
+#define END_FLAG_1 0xEE
+#define END_FLAG_2 0xFF
 
-// 定义 nRF24L01 的 SPI 接口引脚
-const int CE_PIN = 7;            // 片选使能引脚
-const int CSN_PIN = 8;           // 片选引脚
-const byte address[6] = "00001"; // 无线模块的通信地址
-
-class Ctrl
+class CarController
 {
 public:
-    Ctrl();
+    CarController();
     void setup();
     void loop();
+    bool selfTest(); // 新增自检功能
 
 private:
-    RF24 radio;
+    uint8_t globalBuffer[64] = {0};
+    uint8_t bufferIndex = 0;
     void motorAForward();
     void motorAReverse();
     void motorAStop();
@@ -62,8 +60,12 @@ private:
     void turnLeft();
     void turnRight();
     void stop();
+    void readSerialData();
     uint16_t calculateCRC16(uint8_t *data, uint8_t len);
     void parsePacket();
+
+    bool testMotor(const String &motorName,
+                   void (CarController::*forward)(), void (CarController::*reverse)());
 };
 
 #endif
