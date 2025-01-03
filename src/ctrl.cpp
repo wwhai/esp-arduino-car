@@ -1,14 +1,13 @@
 #include "ctrl.h"
 #include "buzzer.h"
-Buzzer buzzer(27, 1000, 500);
+Buzzer buzzer(27, 100);
 
 CarController::CarController()
 {
     buzzer.setup();
 }
-void CarController::setup()
+void init_gpio()
 {
-    // 配置引脚模式
     pinMode(A1_PIN, OUTPUT);
     pinMode(A2_PIN, OUTPUT);
     pinMode(B1_PIN, OUTPUT);
@@ -17,7 +16,10 @@ void CarController::setup()
     pinMode(C2_PIN, OUTPUT);
     pinMode(D1_PIN, OUTPUT);
     pinMode(D2_PIN, OUTPUT);
-
+}
+void CarController::setup()
+{
+    init_gpio();
     // 开机自检
     if (!selfTest())
     {
@@ -25,6 +27,7 @@ void CarController::setup()
         while (true)
             ; // 停止程序运行
     }
+
     Serial.println("Self-test passed!");
 }
 // 自检功能
@@ -49,31 +52,24 @@ bool CarController::selfTest()
 bool CarController::testMotor(const String &motorName,
                               void (CarController::*forward)(), void (CarController::*reverse)())
 {
-    for (size_t i = 0; i < 3; i++)
-    {
-        buzzer.beep();
-        delay(100);
-    }
-
     Serial.print("Testing ");
     Serial.print(motorName);
     Serial.println("...");
-
     // 正转测试
     (this->*forward)();
     buzzer.beep();
-    delay(500); // 电机运行时间
+    delay(500);
     (this->*reverse)();
     buzzer.beep();
-    delay(500);         // 电机运行时间
-    (this->*forward)(); // 再次测试正转
+    delay(500);
+    (this->*forward)();
     buzzer.beep();
     delay(500);
-    stop(); // 停止电机
-    for (size_t i = 0; i < 3; i++)
+    stop();
+    for (size_t i = 0; i < 5; i++)
     {
         buzzer.beep();
-        delay(100);
+        delay(50);
     }
     Serial.println(motorName + " passed!");
     return true;
@@ -81,7 +77,6 @@ bool CarController::testMotor(const String &motorName,
 
 void CarController::loop()
 {
-    // 循环逻辑可以根据需要实现，例如解析命令并控制小车
     readSerialData();
     parsePacket();
 }
@@ -89,14 +84,14 @@ void CarController::loop()
 // 电机A控制
 void CarController::motorAForward()
 {
-    digitalWrite(A1_PIN, HIGH);
-    digitalWrite(A2_PIN, LOW);
+    digitalWrite(A2_PIN, HIGH);
+    digitalWrite(A1_PIN, LOW); // 01
 }
 
 void CarController::motorAReverse()
 {
-    digitalWrite(A1_PIN, LOW);
-    digitalWrite(A2_PIN, HIGH);
+    digitalWrite(A2_PIN, LOW);
+    digitalWrite(A1_PIN, HIGH); // 01
 }
 
 void CarController::motorAStop()
@@ -108,14 +103,14 @@ void CarController::motorAStop()
 // 电机B控制
 void CarController::motorBForward()
 {
-    digitalWrite(B1_PIN, HIGH);
-    digitalWrite(B2_PIN, LOW);
+    digitalWrite(B1_PIN, LOW);
+    digitalWrite(B2_PIN, HIGH);
 }
 
 void CarController::motorBReverse()
 {
-    digitalWrite(B1_PIN, LOW);
-    digitalWrite(B2_PIN, HIGH);
+    digitalWrite(B1_PIN, HIGH);
+    digitalWrite(B2_PIN, LOW);
 }
 
 void CarController::motorBStop()
@@ -165,10 +160,10 @@ void CarController::motorDStop()
 // 整车控制
 void CarController::forward()
 {
-    motorAForward();
-    motorBForward();
     motorCForward();
     motorDForward();
+    motorAForward();
+    motorBForward();
 }
 
 void CarController::reverse()
@@ -181,8 +176,8 @@ void CarController::reverse()
 
 void CarController::turnLeft()
 {
-    motorBReverse();
-    motorDReverse();
+    motorBStop();
+    motorDStop();
     motorCForward();
     motorAForward();
 }
@@ -191,8 +186,8 @@ void CarController::turnRight()
 {
     motorBForward();
     motorDForward();
-    motorAReverse();
-    motorCReverse();
+    motorAStop();
+    motorCStop();
 }
 
 void CarController::stop()
@@ -305,6 +300,8 @@ void CarController::parsePacket()
         break;
     case 0x05:
         stop();
+    case 0x06:
+        init_gpio();
         break;
     default:
         Serial.println("Unknown command!");

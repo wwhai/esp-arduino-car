@@ -16,22 +16,20 @@
 #include "buzzer.h"
 
 // 构造函数
-Buzzer::Buzzer(uint8_t pin, uint16_t frequency, uint16_t duration)
-    : buzzerPin(pin), beepFrequency(frequency), beepDuration(duration) {}
+Buzzer::Buzzer(uint8_t pin, uint16_t duration)
+    : buzzerPin(pin), beepDuration(duration) {}
 
 // 初始化蜂鸣器
 void Buzzer::setup()
 {
-    ledcAttachPin(buzzerPin, 0);    // 将 GPIO 引脚绑定到 PWM 通道 0
-    ledcSetup(0, beepFrequency, 8); // 配置 PWM 通道 0，设置频率和分辨率
+    pinMode(buzzerPin, OUTPUT);
 }
 
 // 播放滴声音
 void Buzzer::beep()
 {
-    // 启动 PWM 输出
-    ledcWriteTone(0, beepFrequency);
-    delay(beepDuration);
-    // 停止 PWM 输出
-    ledcWriteTone(0, 0);
+    digitalWrite(buzzerPin, LOW);
+    tone(buzzerPin, 440, 100);
+    noTone(buzzerPin);
+    digitalWrite(buzzerPin, HIGH);
 }

@@ -21,7 +21,7 @@
 class Buzzer
 {
 public:
-    Buzzer(uint8_t pin, uint16_t frequency = 440, uint16_t duration = 500);
+    Buzzer(uint8_t pin, uint16_t duration = 500);
     void setup();
     void beep();
 
